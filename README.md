@@ -1,36 +1,111 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Mixology AI — Cocktail Scanner
+
+A high-end web app for discovering, scanning, and saving cocktail recipes. Point your camera at a bar menu, and Mixology AI extracts the ingredients, lets you fill in proportions, and saves the recipe to your personal collection.
+
+---
+
+## Features
+
+- **Scan bar menus** — upload or photograph a menu and extract cocktail ingredients automatically using Gemini AI
+- **Review & edit ingredients** — confirm detected ingredients, add missing ones, and set measures
+- **Recipe collection** — browse your saved cocktails with rich detail views
+- **Favorites** — heart any recipe to save it to your curated collection
+- **Discovery feed** — trending cocktails with filter by flavor profile (Spicy, Herbal, Sweet, Clean)
+
+---
+
+## Tech Stack
+
+| Layer | Choice |
+|---|---|
+| Framework | Next.js 15 (App Router) |
+| Styling | Tailwind CSS v4 |
+| State | Zustand (persisted to localStorage) |
+| AI / OCR | Google Gemini 2.5 Flash |
+| Fonts | Noto Serif (headings) + Manrope (body) |
+
+---
+
+## How It Works
+
+### 1. Scan a Menu
+Navigate to the **Scan** tab. Upload a photo of a bar menu (any language). The image is sent to `/api/scan`, which calls Gemini 2.5 Flash with a structured prompt to extract ingredient names and measures from the image.
+
+### 2. Review Ingredients
+The extracted ingredients appear on the **Review Ingredients** screen. You can edit any measure, remove ingredients, or add missing ones manually. Hit **Generate Recipe** when ready.
+
+### 3. Generate & Save
+`/api/cocktails/generate` takes the ingredient list and uses Gemini to produce a full recipe — name, method, glassware, garnish, and instructions. The result is saved into the Zustand store (persisted in localStorage) and you land on the **Recipe Detail** screen.
+
+### 4. Browse Your Collection
+All saved recipes live on the **Home** feed and **Favorites** tab. Each recipe detail page shows ingredients with spirit sub-labels, glassware, garnish, and preparation steps.
+
+---
+
+## Project Structure
+
+```
+app/
+├── (routes)/
+│   ├── page.tsx              # Home / discovery feed
+│   ├── layout.tsx            # Shell with bottom navigation
+│   ├── favorites/page.tsx    # Saved favorites
+│   ├── profile/page.tsx      # User profile
+│   ├── recipe/[id]/page.tsx  # Recipe detail
+│   └── scanner/
+│       ├── page.tsx          # Camera / upload screen
+│       └── review/page.tsx   # Ingredient review & editing
+├── api/
+│   ├── scan/route.ts         # POST — image → ingredients (Gemini)
+│   └── cocktails/generate/   # POST — ingredients → full recipe (Gemini)
+├── components/
+│   ├── BottomNav.tsx         # Glassmorphic bottom navigation bar
+│   ├── CocktailCard.tsx      # Full-bleed card with image overlay
+│   └── IngredientRow.tsx     # Measure + name + spirit sub-label row
+├── store/
+│   └── cocktailStore.ts      # Zustand store (collection + scan state)
+└── globals.css               # Tailwind v4 theme tokens + base layer
+```
+
+---
+
+## Design System
+
+The UI follows **"The Speakeasy Digital Experience"** — a dark, editorial aesthetic inspired by high-end craft cocktail bars.
+
+- **Colors:** Near-black surfaces (`#0e0e0e`), Sunset Orange primary (`#ff9069`), Lime Green accents (`#59ee50`)
+- **Typography:** Noto Serif for cocktail names and headlines, Manrope for body and labels
+- **Components:** No borders — depth is created through tonal surface layering and glassmorphism
+- **Spacing:** Generous vertical whitespace between sections for an "expensive" feel
+
+---
 
 ## Getting Started
 
-First, run the development server:
+### Prerequisites
+
+- Node.js 18+
+- A free [Google AI Studio](https://aistudio.google.com) API key
+
+### Setup
 
 ```bash
+# Install dependencies
+npm install
+
+# Create environment file and add your key
+echo "GEMINI_API_KEY=your_key_here" > .env.local
+
+# Run the development server
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+---
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Environment Variables
 
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+| Variable | Description |
+|---|---|
+| `GEMINI_API_KEY` | Google AI Studio API key — get one free at [aistudio.google.com](https://aistudio.google.com) |
