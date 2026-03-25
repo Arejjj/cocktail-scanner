@@ -25,7 +25,13 @@ export type Cocktail = {
   createdAt: string;
 };
 
+export type DetectedCocktail = {
+  name: string | null;
+  ingredients: Ingredient[];
+};
+
 export type ScanState = {
+  detectedCocktails: DetectedCocktail[];
   detectedIngredients: Ingredient[];
   detectedName: string | null;
   menuImageDataUrl: string | null;
@@ -47,6 +53,7 @@ type CocktailStore = {
   // Scan flow
   scan: ScanState;
   setScanImage: (dataUrl: string) => void;
+  setScanCocktails: (cocktails: DetectedCocktail[]) => void;
   setScanIngredients: (ingredients: Ingredient[]) => void;
   setScanName: (name: string | null) => void;
   setScanProcessing: (v: boolean) => void;
@@ -54,6 +61,7 @@ type CocktailStore = {
 };
 
 const initialScan: ScanState = {
+  detectedCocktails: [],
   detectedIngredients: [],
   detectedName: null,
   menuImageDataUrl: null,
@@ -91,6 +99,8 @@ export const useCocktailStore = create<CocktailStore>()(
       scan: initialScan,
       setScanImage: (dataUrl) =>
         set((s) => ({ scan: { ...s.scan, menuImageDataUrl: dataUrl } })),
+      setScanCocktails: (cocktails) =>
+        set((s) => ({ scan: { ...s.scan, detectedCocktails: cocktails } })),
       setScanIngredients: (ingredients) =>
         set((s) => ({ scan: { ...s.scan, detectedIngredients: ingredients } })),
       setScanName: (name) =>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, useCallback } from "react";
+import { useRef, useState, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useCocktailStore } from "@/app/store/cocktailStore";
 
@@ -9,7 +9,12 @@ export default function ScannerPage() {
   const fileRef = useRef<HTMLInputElement>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const { setScanImage, setScanIngredients, setScanName, setScanProcessing, scan } = useCocktailStore();
+  const { setScanImage, setScanCocktails, setScanIngredients, setScanName, setScanProcessing, scan } = useCocktailStore();
+
+  // Reset any stale processing state when arriving at this page
+  useEffect(() => {
+    setScanProcessing(false);
+  }, [setScanProcessing]);
 
   const processImage = useCallback(
     async (dataUrl: string) => {
@@ -26,16 +31,25 @@ export default function ScannerPage() {
 
         if (!res.ok) throw new Error("Scan failed");
 
-        const { name, ingredients } = await res.json();
-        setScanName(name ?? null);
-        setScanIngredients(ingredients);
-        router.push("/scanner/review");
+        const { cocktails } = await res.json();
+        setScanCocktails(cocktails ?? []);
+
+        // If only one cocktail detected, skip the pick screen
+        if (cocktails?.length === 1) {
+          setScanName(cocktails[0].name ?? null);
+          setScanIngredients(cocktails[0].ingredients ?? []);
+          setScanProcessing(false);
+          router.push("/scanner/review");
+        } else {
+          setScanProcessing(false);
+          router.push("/scanner/pick");
+        }
       } catch (e) {
         setError("Couldn't read the menu. Try a clearer photo.");
         setScanProcessing(false);
       }
     },
-    [router, setScanImage, setScanIngredients, setScanName, setScanProcessing]
+    [router, setScanImage, setScanCocktails, setScanIngredients, setScanName, setScanProcessing]
   );
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -55,62 +69,67 @@ export default function ScannerPage() {
     <div className="flex flex-col h-full min-h-screen relative">
       {/* Viewfinder area */}
       <div
-        className="relative flex-1 flex flex-col items-center justify-center"
-        style={{ background: "#0e0e0e", minHeight: "75vh" }}
+        className="relative flex-1 flex flex-col items-center justify-center gap-5 pt-12"
+        style={{ background: "#0e0e0e" }}
       >
-        {/* Preview or placeholder */}
-        {preview ? (
+        {/* Preview full-cover */}
+        {preview && (
           <img
             src={preview}
             alt="Menu preview"
             className="absolute inset-0 w-full h-full object-cover opacity-40"
           />
-        ) : (
-          <div className="absolute inset-0 flex items-center justify-center">
-            <div
-              className="w-64 h-64 rounded-lg opacity-20"
-              style={{ border: "1px solid #767575" }}
-            />
-          </div>
         )}
 
-        {/* Corner markers */}
+        {/* Viewfinder box with corner markers + scan line */}
         {!preview && (
-          <>
+          <div className="relative w-[80vw] h-[55vw]">
+            {/* Rectangle */}
+            <div
+              className="w-full h-full rounded-lg opacity-20"
+              style={{ border: "1px solid #767575" }}
+            />
+
+            {/* Corner markers */}
             {[
-              "top-16 left-12",
-              "top-16 right-12",
-              "bottom-24 left-12",
-              "bottom-24 right-12",
-            ].map((pos, i) => (
+              { pos: "top-0 left-0", border: "2px 0 0 2px" },
+              { pos: "top-0 right-0", border: "2px 2px 0 0" },
+              { pos: "bottom-0 left-0", border: "0 0 2px 2px" },
+              { pos: "bottom-0 right-0", border: "0 2px 2px 0" },
+            ].map(({ pos, border }, i) => (
               <span
                 key={i}
                 className={`absolute ${pos} w-8 h-8`}
                 style={{
                   borderColor: "#59ee50",
                   borderStyle: "solid",
-                  borderWidth: i % 2 === 0
-                    ? "2px 0 0 2px"
-                    : i === 1
-                    ? "2px 2px 0 0"
-                    : "0 0 2px 2px",
+                  borderWidth: border,
                   borderRadius: "3px",
                 }}
               />
             ))}
-          </>
+
+            {/* Scan line */}
+            {!scan.isProcessing && (
+              <div
+                className="absolute inset-x-0 h-px animate-[scan-line_2.5s_ease-in-out_infinite]"
+                style={{
+                  background: "linear-gradient(to right, transparent, #59ee50, transparent)",
+                  boxShadow: "0 0 8px #59ee50",
+                }}
+              />
+            )}
+          </div>
         )}
 
-        {/* Scan line */}
+        {/* Instruction */}
         {!preview && !scan.isProcessing && (
-          <div
-            className="absolute left-12 right-12 h-px animate-[scan-line_2.5s_ease-in-out_infinite]"
-            style={{
-              background:
-                "linear-gradient(to right, transparent, #59ee50, transparent)",
-              boxShadow: "0 0 8px #59ee50",
-            }}
-          />
+          <p
+            className="text-center text-sm px-8 z-10"
+            style={{ color: "#adaaaa", fontFamily: "var(--font-manrope)" }}
+          >
+            Point your camera at a bar menu to detect cocktails
+          </p>
         )}
 
         {/* Processing overlay */}
@@ -148,16 +167,6 @@ export default function ScannerPage() {
             Auto-detect
           </span>
         </div>
-
-        {/* Instruction */}
-        {!preview && !scan.isProcessing && (
-          <p
-            className="absolute bottom-28 text-center text-sm px-8"
-            style={{ color: "#adaaaa", fontFamily: "var(--font-manrope)" }}
-          >
-            Point your camera at a bar menu to detect cocktails
-          </p>
-        )}
       </div>
 
       {/* Error */}
@@ -176,14 +185,14 @@ export default function ScannerPage() {
 
       {/* Bottom controls */}
       <div
-        className="px-5 pb-8 pt-4 flex flex-col gap-3"
+        className="px-5 pb-2 pt-3 flex flex-col gap-3"
         style={{ background: "#0e0e0e" }}
       >
         {/* Upload photo */}
         <button
           onClick={() => fileRef.current?.click()}
           disabled={scan.isProcessing}
-          className="w-full py-4 rounded-full font-semibold text-sm transition-opacity disabled:opacity-50"
+          className="w-full py-3.5 rounded-full font-semibold text-sm transition-opacity disabled:opacity-50"
           style={{
             background: "linear-gradient(135deg, #ff9069, #ff7441)",
             color: "#000000",
