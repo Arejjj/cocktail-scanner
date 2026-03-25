@@ -19,13 +19,15 @@ export type Cocktail = {
   imageUrl?: string;
   tags?: string[];
   isFavorite?: boolean;
-  source: "scanned" | "api" | "manual";
+  edited?: boolean;
+  source: "gemini" | "cocktaildb" | "scanned" | "api" | "manual";
   scannedMenuImageUrl?: string;
   createdAt: string;
 };
 
 export type ScanState = {
   detectedIngredients: Ingredient[];
+  detectedName: string | null;
   menuImageDataUrl: string | null;
   isProcessing: boolean;
 };
@@ -46,12 +48,14 @@ type CocktailStore = {
   scan: ScanState;
   setScanImage: (dataUrl: string) => void;
   setScanIngredients: (ingredients: Ingredient[]) => void;
+  setScanName: (name: string | null) => void;
   setScanProcessing: (v: boolean) => void;
   clearScan: () => void;
 };
 
 const initialScan: ScanState = {
   detectedIngredients: [],
+  detectedName: null,
   menuImageDataUrl: null,
   isProcessing: false,
 };
@@ -61,7 +65,11 @@ export const useCocktailStore = create<CocktailStore>()(
     (set) => ({
       collection: [],
       addCocktail: (c) =>
-        set((s) => ({ collection: [c, ...s.collection] })),
+        set((s) => ({
+          collection: s.collection.some((x) => x.id === c.id)
+            ? s.collection
+            : [c, ...s.collection],
+        })),
       updateCocktail: (id, updates) =>
         set((s) => ({
           collection: s.collection.map((c) =>
@@ -85,6 +93,8 @@ export const useCocktailStore = create<CocktailStore>()(
         set((s) => ({ scan: { ...s.scan, menuImageDataUrl: dataUrl } })),
       setScanIngredients: (ingredients) =>
         set((s) => ({ scan: { ...s.scan, detectedIngredients: ingredients } })),
+      setScanName: (name) =>
+        set((s) => ({ scan: { ...s.scan, detectedName: name } })),
       setScanProcessing: (v) =>
         set((s) => ({ scan: { ...s.scan, isProcessing: v } })),
       clearScan: () => set({ scan: initialScan }),

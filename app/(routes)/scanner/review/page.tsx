@@ -9,6 +9,7 @@ export default function ReviewPage() {
   const router = useRouter();
   const { scan, clearScan, addCocktail, setActiveCocktail } = useCocktailStore();
 
+  const [cocktailName, setCocktailName] = useState(scan.detectedName ?? "");
   const [ingredients, setIngredients] = useState<Ingredient[]>(scan.detectedIngredients);
   const [newName, setNewName] = useState("");
   const [newMeasure, setNewMeasure] = useState("");
@@ -38,7 +39,11 @@ export default function ReviewPage() {
       const res = await fetch("/api/cocktails/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ingredients }),
+        body: JSON.stringify({
+          name: cocktailName.trim() || null,
+          ingredients,
+          scannedMenuImageUrl: scan.menuImageDataUrl,
+        }),
       });
       if (!res.ok) throw new Error("Generation failed");
       const cocktail = await res.json();
@@ -79,6 +84,28 @@ export default function ReviewPage() {
             <path d="M11 4L6 9l5 5" stroke="#adaaaa" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         </button>
+      </div>
+
+      {/* Cocktail name */}
+      <div className="px-5 mb-5">
+        <p
+          className="text-[10px] uppercase tracking-[0.2em] mb-2"
+          style={{ color: "#adaaaa", fontFamily: "var(--font-manrope)" }}
+        >
+          Cocktail Name
+        </p>
+        <input
+          type="text"
+          placeholder="Enter cocktail name…"
+          value={cocktailName}
+          onChange={(e) => setCocktailName(e.target.value)}
+          className="w-full bg-transparent outline-none text-2xl font-semibold pb-2"
+          style={{
+            fontFamily: "var(--font-noto-serif)",
+            color: "#ffffff",
+            borderBottom: "1.5px solid #262626",
+          }}
+        />
       </div>
 
       {/* Menu image */}
@@ -146,7 +173,7 @@ export default function ReviewPage() {
         >
           <input
             type="text"
-            placeholder="2oz"
+            placeholder="30ml"
             value={newMeasure}
             onChange={(e) => setNewMeasure(e.target.value)}
             className="text-sm text-center outline-none rounded-lg py-1.5 px-2 w-16"
@@ -190,7 +217,7 @@ export default function ReviewPage() {
       <div className="px-5 pb-8 pt-4 flex flex-col gap-3">
         <button
           onClick={generateRecipe}
-          disabled={ingredients.length === 0 || isGenerating}
+          disabled={ingredients.length === 0 && !cocktailName.trim() || isGenerating}
           className="w-full py-4 rounded-2xl font-semibold text-sm uppercase tracking-wider transition-opacity disabled:opacity-40"
           style={{
             background: "linear-gradient(135deg, #ff9069, #ff7441)",

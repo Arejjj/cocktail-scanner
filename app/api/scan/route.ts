@@ -24,25 +24,32 @@ export async function POST(req: Request) {
           data: matches[2],
         },
       },
-      `This is a photo of a bar menu or cocktail menu.
-Extract all cocktail ingredients you can identify, including any measurements shown.
-Return ONLY a valid JSON array — no markdown, no code fences, no explanation:
-[
-  { "name": "Ingredient Name", "measure": "2oz" },
-  { "name": "Another Ingredient", "measure": "1oz" }
-]
+      `This is a photo of a bar menu or cocktail menu. The menu may be in any language.
+Extract the first or most prominent cocktail name you can identify, and all of its ingredients with measurements.
+Convert all measurements to millilitres (ml). 1 oz = 30 ml, 1 cl = 10 ml.
+Return ONLY a valid JSON object — no markdown, no code fences, no explanation:
+{
+  "name": "Cocktail Name or null if not found",
+  "ingredients": [
+    { "name": "Ingredient Name", "measure": "45ml" },
+    { "name": "Another Ingredient", "measure": "30ml" }
+  ]
+}
 If no measurement is visible, use an empty string for measure.
 Focus on spirits, liqueurs, juices, syrups, and garnishes. List up to 12 ingredients.`,
     ]);
 
     const text = result.response.text();
-    const jsonMatch = text.match(/\[[\s\S]*\]/);
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
-      return NextResponse.json({ ingredients: [] });
+      return NextResponse.json({ name: null, ingredients: [] });
     }
 
-    const ingredients = JSON.parse(jsonMatch[0]);
-    return NextResponse.json({ ingredients });
+    const parsed = JSON.parse(jsonMatch[0]);
+    return NextResponse.json({
+      name: parsed.name ?? null,
+      ingredients: Array.isArray(parsed.ingredients) ? parsed.ingredients : [],
+    });
   } catch (error) {
     console.error("Scan error:", error);
     return NextResponse.json({ error: "Scan failed" }, { status: 500 });

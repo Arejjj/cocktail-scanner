@@ -9,7 +9,7 @@ export default function ScannerPage() {
   const fileRef = useRef<HTMLInputElement>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const { setScanImage, setScanIngredients, setScanProcessing, scan } = useCocktailStore();
+  const { setScanImage, setScanIngredients, setScanName, setScanProcessing, scan } = useCocktailStore();
 
   const processImage = useCallback(
     async (dataUrl: string) => {
@@ -26,7 +26,8 @@ export default function ScannerPage() {
 
         if (!res.ok) throw new Error("Scan failed");
 
-        const { ingredients } = await res.json();
+        const { name, ingredients } = await res.json();
+        setScanName(name ?? null);
         setScanIngredients(ingredients);
         router.push("/scanner/review");
       } catch (e) {
@@ -34,7 +35,7 @@ export default function ScannerPage() {
         setScanProcessing(false);
       }
     },
-    [router, setScanImage, setScanIngredients, setScanProcessing]
+    [router, setScanImage, setScanIngredients, setScanName, setScanProcessing]
   );
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {

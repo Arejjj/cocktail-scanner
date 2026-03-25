@@ -1,10 +1,12 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useCocktailStore } from "@/app/store/cocktailStore";
 
 export default function ProfilePage() {
+  const router = useRouter();
   const { collection } = useCocktailStore();
-  const scanned = collection.filter((c) => c.source === "scanned").length;
+  const scanned = collection.filter((c) => c.source === "scanned" || c.source === "gemini").length;
   const favorites = collection.filter((c) => c.isFavorite).length;
 
   return (
@@ -49,6 +51,18 @@ export default function ProfilePage() {
           </div>
         ))}
       </div>
+
+      {/* Create Recipe CTA */}
+      <button
+        onClick={() => router.push("/recipe/new")}
+        className="w-full py-4 rounded-2xl flex items-center justify-center gap-3 font-semibold text-sm mb-5"
+        style={{ background: "linear-gradient(135deg, #ff9069, #ff7441)", color: "#000000", fontFamily: "var(--font-manrope)" }}
+      >
+        <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+          <path d="M9 2v14M2 9h14" stroke="#000" strokeWidth="2" strokeLinecap="round" />
+        </svg>
+        Create New Recipe
+      </button>
 
       {/* About */}
       <div

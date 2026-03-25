@@ -43,7 +43,7 @@ async function lookupCocktailDB(ingredients: Ingredient[]): Promise<Cocktail | n
       garnish: "",
       imageUrl: d.strDrinkThumb ?? "",
       tags: d.strTags?.split(",").map((t: string) => t.trim()) ?? [],
-      source: "api",
+      source: "cocktaildb",
       createdAt: new Date().toISOString(),
     };
   } catch {
@@ -52,14 +52,20 @@ async function lookupCocktailDB(ingredients: Ingredient[]): Promise<Cocktail | n
 }
 
 // Fall back to Gemini to compose a recipe
-async function generateWithGemini(ingredients: Ingredient[]): Promise<Cocktail> {
+async function generateWithGemini(name: string | null, ingredients: Ingredient[]): Promise<Cocktail> {
   const ingredientList = ingredients
     .map((i) => (i.measure ? `${i.measure} ${i.name}` : i.name))
     .join(", ");
 
+  const nameInstruction = name
+    ? `The cocktail is called "${name}". Use this name.`
+    : `Give the cocktail a fitting name.`;
+
   const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
   const result = await model.generateContent(
-    `You are an expert mixologist. Create a cocktail recipe using these ingredients: ${ingredientList}.
+    `You are an expert mixologist. ${nameInstruction}
+Create a cocktail recipe using these ingredients: ${ingredientList || "no specific ingredients provided"}.
+Use millilitres (ml) for all measurements.
 Return ONLY valid JSON — no markdown, no code fences, no explanation:
 {
   "name": "Cocktail Name",
@@ -69,7 +75,7 @@ Return ONLY valid JSON — no markdown, no code fences, no explanation:
   "garnish": "Garnish description",
   "instructions": "Step by step instructions as a single paragraph.",
   "ingredients": [
-    { "name": "Ingredient", "measure": "2oz" }
+    { "name": "Ingredient", "measure": "45ml" }
   ]
 }`
   );
@@ -89,27 +95,31 @@ Return ONLY valid JSON — no markdown, no code fences, no explanation:
     glass: parsed.glass ?? "",
     garnish: parsed.garnish ?? "",
     tags: Array.isArray(parsed.tags) ? parsed.tags : [],
-    source: "scanned",
+    source: "gemini",
     createdAt: new Date().toISOString(),
   };
 }
 
 export async function POST(req: Request) {
   try {
-    const { ingredients } = await req.json() as { ingredients: Ingredient[] };
+    const { name, ingredients, scannedMenuImageUrl } = await req.json() as {
+      name?: string | null;
+      ingredients: Ingredient[];
+      scannedMenuImageUrl?: string | null;
+    };
 
-    if (!ingredients?.length) {
-      return NextResponse.json({ error: "No ingredients provided" }, { status: 400 });
+    if (!ingredients?.length && !name) {
+      return NextResponse.json({ error: "No ingredients or name provided" }, { status: 400 });
     }
 
-    // Try TheCocktailDB first, fall back to Claude
-    const dbCocktail = await lookupCocktailDB(ingredients);
+    // Try TheCocktailDB first (only when no specific name is given)
+    const dbCocktail = !name ? await lookupCocktailDB(ingredients) : null;
     if (dbCocktail) {
-      return NextResponse.json(dbCocktail);
+      return NextResponse.json({ ...dbCocktail, scannedMenuImageUrl: scannedMenuImageUrl ?? null });
     }
 
-    const claudeCocktail = await generateWithGemini(ingredients);
-    return NextResponse.json(claudeCocktail);
+    const generatedCocktail = await generateWithGemini(name ?? null, ingredients ?? []);
+    return NextResponse.json({ ...generatedCocktail, scannedMenuImageUrl: scannedMenuImageUrl ?? null });
   } catch (error) {
     console.error("Generate error:", error);
     return NextResponse.json({ error: "Failed to generate recipe" }, { status: 500 });

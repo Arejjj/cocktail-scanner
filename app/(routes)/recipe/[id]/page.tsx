@@ -26,7 +26,12 @@ export default function RecipeDetailPage() {
         )
           .then((r) => r.json())
           .then((data) => {
-            const drinks = (data.drinks ?? []).slice(0, 4).filter((d: Record<string, string>) => d.idDrink !== found.id);
+            const seen = new Set<string>([found.id]);
+            const drinks = (data.drinks ?? []).filter((d: Record<string, string>) => {
+              if (seen.has(d.idDrink)) return false;
+              seen.add(d.idDrink);
+              return true;
+            });
             setSuggestions(
               drinks.slice(0, 3).map((d: Record<string, string>) => ({
                 id: d.idDrink,
@@ -128,6 +133,17 @@ export default function RecipeDetailPage() {
             <span className="text-sm font-semibold" style={{ fontFamily: "var(--font-noto-serif)" }}>Mixology AI</span>
           </div>
           <div className="flex gap-2">
+            {inCollection && (
+              <button
+                onClick={() => router.push(`/recipe/${cocktail.id}/edit`)}
+                className="w-10 h-10 rounded-full flex items-center justify-center"
+                style={{ background: "rgba(14,14,14,0.6)", backdropFilter: "blur(12px)" }}
+              >
+                <svg width="17" height="17" viewBox="0 0 17 17" fill="none">
+                  <path d="M12 2.5l2.5 2.5-8 8-3 .5.5-3 8-8z" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </button>
+            )}
             <button
               onClick={searchOnline}
               className="w-10 h-10 rounded-full flex items-center justify-center"
@@ -167,11 +183,54 @@ export default function RecipeDetailPage() {
 
         {/* Title */}
         <h1
-          className="text-5xl font-semibold leading-none mb-6"
+          className="text-5xl font-semibold leading-none mb-4"
           style={{ fontFamily: "var(--font-noto-serif)" }}
         >
           {cocktail.name}
         </h1>
+
+        {/* Source + Edited tags */}
+        {(() => {
+          const src = cocktail.source;
+          const isCocktailDB = src === "cocktaildb" || src === "api";
+          const isGemini = src === "gemini" || src === "scanned";
+          const isManual = src === "manual";
+          return (
+            <div className="flex gap-2 flex-wrap mb-6">
+              {(isCocktailDB || isGemini || isManual) && (
+                <span
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] uppercase tracking-widest font-semibold"
+                  style={{
+                    background: isCocktailDB ? "rgba(89,238,80,0.1)" : isManual ? "rgba(89,238,80,0.1)" : "rgba(255,144,105,0.1)",
+                    color: isCocktailDB ? "#59ee50" : isManual ? "#59ee50" : "#ff9069",
+                    fontFamily: "var(--font-manrope)",
+                  }}
+                >
+                  {isCocktailDB && (
+                    <><svg width="10" height="10" viewBox="0 0 10 10" fill="none"><ellipse cx="5" cy="3" rx="4" ry="2" stroke="currentColor" strokeWidth="1.2" /><path d="M1 3v4c0 1.1 1.8 2 4 2s4-.9 4-2V3" stroke="currentColor" strokeWidth="1.2" /></svg>TheCocktailDB</>
+                  )}
+                  {isGemini && (
+                    <><svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M5 1l1 3h3l-2.5 1.8 1 3L5 7 2.5 8.8l1-3L1 4h3z" fill="currentColor" /></svg>Gemini AI</>
+                  )}
+                  {isManual && (
+                    <><svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 8l1.5-1.5L7 3l1 1-3.5 3.5L3 9 2 8z" stroke="currentColor" strokeWidth="1" fill="none" /><path d="M6.5 2.5l1 1" stroke="currentColor" strokeWidth="1" strokeLinecap="round" /></svg>Your Recipe</>
+                  )}
+                </span>
+              )}
+              {cocktail.edited && (
+                <span
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] uppercase tracking-widest font-semibold"
+                  style={{ background: "rgba(255,112,112,0.1)", color: "#ff7070", fontFamily: "var(--font-manrope)" }}
+                >
+                  <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                    <path d="M7 1.5l1.5 1.5-5 5-2 .5.5-2 5-5z" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                  Edited
+                </span>
+              )}
+            </div>
+          );
+        })()}
 
         {/* Save to Favorites CTA */}
         <div className="flex gap-3 mb-10">
