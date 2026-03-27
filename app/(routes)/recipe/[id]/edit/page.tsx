@@ -52,6 +52,7 @@ export default function EditRecipePage() {
   }
 
   function save() {
+    if (!cocktail) return;
     const wasAiOrDb = cocktail.source !== "manual";
     updateCocktail(cocktail.id, {
       name, category, glass, garnish, instructions, ingredients, imageUrl,
