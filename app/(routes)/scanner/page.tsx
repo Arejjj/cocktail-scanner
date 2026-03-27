@@ -66,10 +66,10 @@ export default function ScannerPage() {
   }
 
   return (
-    <div className="flex flex-col h-full min-h-screen relative">
+    <div className="flex flex-col h-dvh relative overflow-hidden">
       {/* Viewfinder area */}
       <div
-        className="relative flex-1 flex flex-col items-center justify-center gap-5 pt-12"
+        className="relative flex-1 min-h-0 flex flex-col items-center justify-center gap-5 pt-12"
         style={{ background: "#0e0e0e" }}
       >
         {/* Preview full-cover */}
@@ -185,7 +185,7 @@ export default function ScannerPage() {
 
       {/* Bottom controls */}
       <div
-        className="px-5 pb-2 pt-3 flex flex-col gap-3"
+        className="px-5 pb-24 pt-3 flex flex-col gap-3"
         style={{ background: "#0e0e0e" }}
       >
         {/* Upload photo */}
