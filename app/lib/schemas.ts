@@ -67,5 +67,32 @@ export function sanitizeForPrompt(s: string): string {
     .slice(0, 100);
 }
 
-/** Max photo size users may upload (5 MB). */
+/** Max photo size users may upload from disk (5 MB). */
 export const MAX_PHOTO_BYTES = 5 * 1024 * 1024;
+
+/**
+ * Compress and resize an image data URL before sending to the API.
+ * Scales down to max 1600px on the longest side and re-encodes as JPEG.
+ * Keeps the image readable by Gemini while staying well under the API size limit.
+ */
+export function compressImage(dataUrl: string, maxPx = 1600, quality = 0.85): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      const { width, height } = img;
+      const scale = Math.min(1, maxPx / Math.max(width, height));
+      const w = Math.round(width * scale);
+      const h = Math.round(height * scale);
+
+      const canvas = document.createElement("canvas");
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return reject(new Error("Canvas not available"));
+      ctx.drawImage(img, 0, 0, w, h);
+      resolve(canvas.toDataURL("image/jpeg", quality));
+    };
+    img.onerror = () => reject(new Error("Failed to load image"));
+    img.src = dataUrl;
+  });
+}

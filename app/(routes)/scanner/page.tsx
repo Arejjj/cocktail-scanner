@@ -3,6 +3,7 @@
 import { useRef, useState, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useCocktailStore } from "@/app/store/cocktailStore";
+import { compressImage } from "@/app/lib/schemas";
 
 export default function ScannerPage() {
   const router = useRouter();
@@ -60,9 +61,12 @@ export default function ScannerPage() {
     e.target.value = "";
 
     const reader = new FileReader();
-    reader.onload = (ev) => {
-      const dataUrl = ev.target?.result as string;
-      setPreview(dataUrl);
+    reader.onload = async (ev) => {
+      const raw = ev.target?.result as string;
+      setPreview(raw);
+      // Compress before sending — Android cameras can produce 15 MB+ images
+      // that would exceed the API limit. Scale to max 1600px, re-encode as JPEG.
+      const dataUrl = await compressImage(raw).catch(() => raw);
       processImage(dataUrl);
     };
     reader.readAsDataURL(file);
