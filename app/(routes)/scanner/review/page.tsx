@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useCocktailStore, Ingredient } from "@/app/store/cocktailStore";
 import IngredientRow from "@/app/components/IngredientRow";
+import { MAX_PHOTO_BYTES } from "@/app/lib/schemas";
 
 export default function ReviewPage() {
   const router = useRouter();
@@ -26,13 +27,21 @@ export default function ReviewPage() {
 
   function addIngredient() {
     if (!newName.trim()) return;
-    setIngredients((prev) => [...prev, { name: newName.trim(), measure: newMeasure.trim() }]);
+    if (ingredients.length >= 20) {
+      setError("Maximum 20 ingredients allowed.");
+      return;
+    }
+    setIngredients((prev) => [...prev, { name: newName.trim().slice(0, 100), measure: newMeasure.trim().slice(0, 30) }]);
     setNewName("");
     setNewMeasure("");
   }
 
   async function generateRecipe() {
-    if (ingredients.length === 0) return;
+    if (ingredients.length === 0 && !cocktailName.trim()) return;
+    if (cocktailName.trim().length > 100) {
+      setError("Cocktail name must be 100 characters or fewer.");
+      return;
+    }
     setIsGenerating(true);
     setError(null);
     try {
@@ -99,6 +108,7 @@ export default function ReviewPage() {
           placeholder="Enter cocktail name…"
           value={cocktailName}
           onChange={(e) => setCocktailName(e.target.value)}
+          maxLength={100}
           className="w-full bg-transparent outline-none text-2xl font-semibold pb-2"
           style={{
             fontFamily: "var(--font-noto-serif)",
@@ -176,6 +186,7 @@ export default function ReviewPage() {
             placeholder="30ml"
             value={newMeasure}
             onChange={(e) => setNewMeasure(e.target.value)}
+            maxLength={30}
             className="text-sm text-center outline-none rounded-lg py-1.5 px-2 w-16"
             style={{
               fontFamily: "var(--font-manrope)",
@@ -190,6 +201,7 @@ export default function ReviewPage() {
             value={newName}
             onChange={(e) => setNewName(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && addIngredient()}
+            maxLength={100}
             className="flex-1 bg-transparent outline-none text-sm"
             style={{ color: "#ffffff", fontFamily: "var(--font-manrope)" }}
           />

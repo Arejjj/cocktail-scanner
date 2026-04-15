@@ -1,6 +1,7 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { NextResponse } from "next/server";
 import { Cocktail, Ingredient } from "@/app/store/cocktailStore";
+import { GenerateRequestSchema, sanitizeForPrompt } from "@/app/lib/schemas";
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
 
@@ -17,10 +18,9 @@ async function lookupCocktailDB(ingredients: Ingredient[]): Promise<Cocktail | n
     const drinks = data.drinks;
     if (!drinks || !Array.isArray(drinks) || drinks.length === 0) return null;
 
-    // Look up full details on the first match
     const drink = drinks[0];
     const detail = await fetch(
-      `https://www.thecocktaildb.com/api/json/v1/1/lookup.php?i=${drink.idDrink}`
+      `https://www.thecocktaildb.com/api/json/v1/1/lookup.php?i=${encodeURIComponent(drink.idDrink)}`
     );
     const detailData = await detail.json();
     const d = detailData.drinks?.[0];
@@ -53,12 +53,19 @@ async function lookupCocktailDB(ingredients: Ingredient[]): Promise<Cocktail | n
 
 // Fall back to Gemini to compose a recipe
 async function generateWithGemini(name: string | null, ingredients: Ingredient[]): Promise<Cocktail> {
-  const ingredientList = ingredients
+  // Sanitize all user-supplied strings before injecting into the prompt
+  const safeName = name ? sanitizeForPrompt(name) : null;
+  const safeIngredients = ingredients.map((i) => ({
+    name: sanitizeForPrompt(i.name),
+    measure: sanitizeForPrompt(i.measure),
+  }));
+
+  const ingredientList = safeIngredients
     .map((i) => (i.measure ? `${i.measure} ${i.name}` : i.name))
     .join(", ");
 
-  const nameInstruction = name
-    ? `The cocktail is called "${name}". Use this name.`
+  const nameInstruction = safeName
+    ? `The cocktail is called "${safeName}". Use this name.`
     : `Give the cocktail a fitting name.`;
 
   const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
@@ -82,7 +89,7 @@ Return ONLY valid JSON — no markdown, no code fences, no explanation:
 
   const text = result.response.text();
   const jsonMatch = text.match(/\{[\s\S]*\}/);
-  if (!jsonMatch) throw new Error("No JSON in response");
+  if (!jsonMatch) throw new Error("No JSON in Gemini response");
 
   const parsed = JSON.parse(jsonMatch[0]);
 
@@ -102,25 +109,40 @@ Return ONLY valid JSON — no markdown, no code fences, no explanation:
 
 export async function POST(req: Request) {
   try {
-    const { name, ingredients, scannedMenuImageUrl } = await req.json() as {
-      name?: string | null;
-      ingredients: Ingredient[];
-      scannedMenuImageUrl?: string | null;
-    };
+    const body = await req.json().catch(() => null);
 
-    if (!ingredients?.length && !name) {
-      return NextResponse.json({ error: "No ingredients or name provided" }, { status: 400 });
+    // 1. Validate and coerce input — reject invalid payloads early
+    const parsed = GenerateRequestSchema.safeParse(body);
+    if (!parsed.success) {
+      const message = parsed.error.issues[0]?.message ?? "Invalid request";
+      return NextResponse.json({ error: message }, { status: 400 });
     }
 
-    // Try TheCocktailDB first (only when no specific name is given)
+    const { name, ingredients, scannedMenuImageUrl } = parsed.data;
+
+    if (!ingredients?.length && !name) {
+      return NextResponse.json(
+        { error: "Please provide a cocktail name or at least one ingredient." },
+        { status: 400 }
+      );
+    }
+
+    // 2. Try TheCocktailDB first (only when no specific name is given)
     const dbCocktail = !name ? await lookupCocktailDB(ingredients) : null;
     if (dbCocktail) {
-      return NextResponse.json({ ...dbCocktail, scannedMenuImageUrl: scannedMenuImageUrl ?? null });
+      return NextResponse.json({
+        ...dbCocktail,
+        scannedMenuImageUrl: scannedMenuImageUrl ?? null,
+      });
     }
 
     const generatedCocktail = await generateWithGemini(name ?? null, ingredients ?? []);
-    return NextResponse.json({ ...generatedCocktail, scannedMenuImageUrl: scannedMenuImageUrl ?? null });
+    return NextResponse.json({
+      ...generatedCocktail,
+      scannedMenuImageUrl: scannedMenuImageUrl ?? null,
+    });
   } catch (error) {
+    // Full error is logged server-side; client only gets a generic message
     console.error("Generate error:", error);
     return NextResponse.json({ error: "Failed to generate recipe" }, { status: 500 });
   }
