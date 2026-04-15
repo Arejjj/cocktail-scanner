@@ -174,7 +174,7 @@ export default function RecipeDetailPage() {
             )}
           </div>
         )}
-        <div className="absolute inset-0" style={{ background: "linear-gradient(to bottom, rgba(14,14,14,0.3) 0%, rgba(14,14,14,0.7) 70%, #0e0e0e 100%)" }} />
+        <div className="absolute inset-0 pointer-events-none" style={{ background: "linear-gradient(to bottom, rgba(14,14,14,0.3) 0%, rgba(14,14,14,0.7) 70%, #0e0e0e 100%)" }} />
 
         {/* Change photo button — shown over existing image */}
         {cocktail.imageUrl && inCollection && (
