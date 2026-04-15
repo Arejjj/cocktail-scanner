@@ -7,6 +7,7 @@ import { useCocktailStore } from "@/app/store/cocktailStore";
 export default function ScannerPage() {
   const router = useRouter();
   const fileRef = useRef<HTMLInputElement>(null);
+  const cameraRef = useRef<HTMLInputElement>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const { setScanImage, setScanCocktails, setScanIngredients, setScanName, setScanProcessing, scan } = useCocktailStore();
@@ -55,6 +56,8 @@ export default function ScannerPage() {
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
+    // Reset so the same photo can be re-scanned without needing to pick a new file
+    e.target.value = "";
 
     const reader = new FileReader();
     reader.onload = (ev) => {
@@ -202,14 +205,11 @@ export default function ScannerPage() {
           {scan.isProcessing ? "Processing…" : "Upload Photo of Menu"}
         </button>
 
-        {/* Take photo (triggers camera on mobile) */}
+        {/* Take photo — separate input with capture="environment" statically set.
+            Dynamically adding the capture attribute before .click() breaks iOS Safari's
+            user-gesture chain and silently drops the onChange event. */}
         <button
-          onClick={() => {
-            if (fileRef.current) {
-              fileRef.current.setAttribute("capture", "environment");
-              fileRef.current.click();
-            }
-          }}
+          onClick={() => cameraRef.current?.click()}
           disabled={scan.isProcessing}
           className="w-full py-3.5 rounded-full font-semibold text-sm transition-opacity disabled:opacity-50"
           style={{
@@ -222,10 +222,20 @@ export default function ScannerPage() {
           Take Photo
         </button>
 
+        {/* File upload input (gallery / files) */}
         <input
           ref={fileRef}
           type="file"
           accept="image/*"
+          className="hidden"
+          onChange={handleFileChange}
+        />
+        {/* Camera input — capture attribute must be static, not set dynamically */}
+        <input
+          ref={cameraRef}
+          type="file"
+          accept="image/*"
+          capture="environment"
           className="hidden"
           onChange={handleFileChange}
         />
