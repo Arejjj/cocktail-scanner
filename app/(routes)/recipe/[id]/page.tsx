@@ -140,7 +140,7 @@ export default function RecipeDetailPage() {
           <div className="absolute inset-0" style={{ background: "#131313" }}>
             {/* Prominent Add Photo prompt when no image and recipe is saved */}
             {inCollection && (
-              <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
+              <div className="absolute inset-0 flex flex-col items-center justify-end pb-6 gap-3">
                 <div className="flex gap-3">
                   <button
                     onClick={() => photoRef.current?.click()}
