@@ -22,7 +22,12 @@ export async function POST(req: Request) {
     const mimeType = matches[1].toLowerCase();
     const base64Data = matches[2];
 
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+    const model = genAI.getGenerativeModel({
+      model: "gemini-2.5-flash",
+      // Disable extended thinking — cuts latency from 20-30s down to 2-4s
+      // for structured JSON extraction tasks that don't need deep reasoning.
+      generationConfig: { thinkingConfig: { thinkingBudget: 0 } } as object,
+    });
 
     const result = await model.generateContent([
       { inlineData: { mimeType, data: base64Data } },

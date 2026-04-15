@@ -230,14 +230,24 @@ export default function ReviewPage() {
         <button
           onClick={generateRecipe}
           disabled={ingredients.length === 0 && !cocktailName.trim() || isGenerating}
-          className="w-full py-4 rounded-2xl font-semibold text-sm uppercase tracking-wider transition-opacity disabled:opacity-40"
+          className="w-full py-4 rounded-2xl font-semibold text-sm uppercase tracking-wider transition-opacity disabled:opacity-40 flex items-center justify-center gap-2.5"
           style={{
             background: "linear-gradient(135deg, #ff9069, #ff7441)",
             color: "#000000",
             fontFamily: "var(--font-manrope)",
           }}
         >
-          {isGenerating ? "Generating…" : "Generate Recipe"}
+          {isGenerating ? (
+            <>
+              <span
+                className="w-4 h-4 rounded-full border-2 border-t-transparent animate-spin shrink-0"
+                style={{ borderColor: "rgba(0,0,0,0.4)", borderTopColor: "transparent" }}
+              />
+              Generating Recipe…
+            </>
+          ) : (
+            "Generate Recipe"
+          )}
         </button>
         <button
           onClick={() => { clearScan(); router.push("/scanner"); }}

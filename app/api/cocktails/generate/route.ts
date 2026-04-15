@@ -68,7 +68,12 @@ async function generateWithGemini(name: string | null, ingredients: Ingredient[]
     ? `The cocktail is called "${safeName}". Use this name.`
     : `Give the cocktail a fitting name.`;
 
-  const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+  const model = genAI.getGenerativeModel({
+    model: "gemini-2.5-flash",
+    // Disable extended thinking — cuts latency significantly for recipe
+    // generation tasks where deterministic JSON output matters more than depth.
+    generationConfig: { thinkingConfig: { thinkingBudget: 0 } } as object,
+  });
   const result = await model.generateContent(
     `You are an expert mixologist. ${nameInstruction}
 Create a cocktail recipe using these ingredients: ${ingredientList || "no specific ingredients provided"}.
