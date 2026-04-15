@@ -1,17 +1,21 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { useCocktailStore, Cocktail } from "@/app/store/cocktailStore";
 import IngredientRow from "@/app/components/IngredientRow";
+import { compressImage, MAX_PHOTO_BYTES } from "@/app/lib/schemas";
 
 export default function RecipeDetailPage() {
   const router = useRouter();
   const params = useParams();
-  const { activeCocktail, collection, toggleFavorite, addCocktail } = useCocktailStore();
+  const { activeCocktail, collection, toggleFavorite, addCocktail, updateCocktail } = useCocktailStore();
 
   const [cocktail, setCocktail] = useState<Cocktail | null>(null);
   const [suggestions, setSuggestions] = useState<Cocktail[]>([]);
+  const [photoError, setPhotoError] = useState<string | null>(null);
+  const photoRef = useRef<HTMLInputElement>(null);
+  const cameraRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const id = params.id as string;
@@ -95,6 +99,25 @@ export default function RecipeDetailPage() {
     } catch {}
   }
 
+  async function handlePhoto(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = "";
+    setPhotoError(null);
+    if (file.size > MAX_PHOTO_BYTES * 3) { // allow up to 15 MB before compression
+      setPhotoError("Photo is too large. Please choose a smaller image.");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = async (ev) => {
+      const raw = ev.target?.result as string;
+      const compressed = await compressImage(raw).catch(() => raw);
+      updateCocktail(cocktail!.id, { imageUrl: compressed });
+      setCocktail((prev) => prev ? { ...prev, imageUrl: compressed } : prev);
+    };
+    reader.readAsDataURL(file);
+  }
+
   if (!cocktail) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -114,9 +137,64 @@ export default function RecipeDetailPage() {
         {cocktail.imageUrl ? (
           <img src={cocktail.imageUrl} alt={cocktail.name} className="absolute inset-0 w-full h-full object-cover" />
         ) : (
-          <div className="absolute inset-0" style={{ background: "#131313" }} />
+          <div className="absolute inset-0" style={{ background: "#131313" }}>
+            {/* Prominent Add Photo prompt when no image and recipe is saved */}
+            {inCollection && (
+              <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => photoRef.current?.click()}
+                    className="flex items-center gap-2 px-4 py-2.5 rounded-full text-xs font-semibold uppercase tracking-wider"
+                    style={{ background: "rgba(255,144,105,0.15)", color: "#ff9069", border: "1.5px solid rgba(255,144,105,0.3)", fontFamily: "var(--font-manrope)" }}
+                  >
+                    <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                      <rect x="1" y="3" width="12" height="9" rx="1.5" stroke="currentColor" strokeWidth="1.3" />
+                      <circle cx="7" cy="7.5" r="2" stroke="currentColor" strokeWidth="1.3" />
+                      <path d="M5 3l.8-1.5h2.4L9 3" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+                    </svg>
+                    Upload Photo
+                  </button>
+                  <button
+                    onClick={() => cameraRef.current?.click()}
+                    className="flex items-center gap-2 px-4 py-2.5 rounded-full text-xs font-semibold uppercase tracking-wider"
+                    style={{ background: "rgba(255,144,105,0.15)", color: "#ff9069", border: "1.5px solid rgba(255,144,105,0.3)", fontFamily: "var(--font-manrope)" }}
+                  >
+                    <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                      <path d="M2 4.5h10a1 1 0 011 1v5a1 1 0 01-1 1H2a1 1 0 01-1-1v-5a1 1 0 011-1z" stroke="currentColor" strokeWidth="1.3" />
+                      <circle cx="7" cy="7.5" r="1.8" stroke="currentColor" strokeWidth="1.3" />
+                      <path d="M5 4.5l.6-1.5h2.8L9 4.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+                    </svg>
+                    Take Photo
+                  </button>
+                </div>
+                {photoError && (
+                  <p className="text-xs px-6 text-center" style={{ color: "#ff7070", fontFamily: "var(--font-manrope)" }}>{photoError}</p>
+                )}
+              </div>
+            )}
+          </div>
         )}
         <div className="absolute inset-0" style={{ background: "linear-gradient(to bottom, rgba(14,14,14,0.3) 0%, rgba(14,14,14,0.7) 70%, #0e0e0e 100%)" }} />
+
+        {/* Change photo button — shown over existing image */}
+        {cocktail.imageUrl && inCollection && (
+          <button
+            onClick={() => photoRef.current?.click()}
+            className="absolute bottom-14 right-5 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] font-semibold uppercase tracking-wider z-10"
+            style={{ background: "rgba(14,14,14,0.6)", color: "#ffffff", backdropFilter: "blur(12px)", fontFamily: "var(--font-manrope)" }}
+          >
+            <svg width="11" height="11" viewBox="0 0 11 11" fill="none">
+              <rect x="0.5" y="2" width="10" height="8" rx="1.5" stroke="currentColor" strokeWidth="1.2" />
+              <circle cx="5.5" cy="6" r="1.8" stroke="currentColor" strokeWidth="1.2" />
+              <path d="M3.5 2l.7-1.5h2.6L7.5 2" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+            </svg>
+            Change Photo
+          </button>
+        )}
+
+        {/* Hidden photo inputs */}
+        <input ref={photoRef} type="file" accept="image/*" className="hidden" onChange={handlePhoto} />
+        <input ref={cameraRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={handlePhoto} />
 
         {/* Top bar */}
         <div className="absolute top-0 left-0 right-0 flex items-center justify-between px-5 pt-14">
